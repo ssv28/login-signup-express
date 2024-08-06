@@ -4,57 +4,54 @@ const fs = require('fs');
 
 const app = express();
 
-// Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// In-memory user store
-const users = {};
+const data = fs.readFileSync('data/data.json', 'utf-8');
+let jsonData = JSON.parse(data);
 
-// Set EJS as the view engine
 app.set('view engine', 'ejs');
 
-// Render the login page
 app.get('/', (req, res) => {
-    res.render('login', { message: '' });
+    res.render('login');
 });
 
-// Render the signup page
 app.get('/signup', (req, res) => {
-    res.render('signup', { message: '' });
+    res.render('signup');
 });
 
-// Handle signup
 app.post('/signup', (req, res) => {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-        return res.render('signup', { message: 'Email and password are required' });
+    if (email && password) {
+        const userExists = jsonData.find(user => user.email === email);
+        if (userExists) {
+            return res.send('User already exists. Please login.');
+        }
+
+        jsonData.push(req.body);
+
+        fs.writeFileSync('data/data.json', JSON.stringify(jsonData), 'utf-8');
+        return res.redirect('/');
+
+    } else {
+
+        res.send('Email and Password are required.');
     }
 
-    if (users[email]) {
-        return res.render('signup', { message: 'User already exists' });
-    }
-
-    users[email] = { email, password };
-    res.redirect('/');
 });
 
-// Handle login
 app.post('/login', (req, res) => {
+
     const { email, password } = req.body;
 
-    if (!email || !password) {
-        return res.render('login', { message: 'Email and password are required' });
+    const user = jsonData.find(user => user.email === email && user.password === password);
+    if (user) {
+        res.send(`Welcome ${email}!`);
+    } else {
+        res.send('Invalid email or password.');
     }
 
-    const user = users[email];
-
-    if (!user || user.password !== password) {
-        return res.render('login', { message: 'Invalid credentials' });
-    }
-
-    res.send('Login successful');
 });
 
 // Start the server
